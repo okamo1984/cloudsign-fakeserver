@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"cloudsign/fakeserver/fakedata"
 	"cloudsign/fakeserver/models"
-	"github.com/labstack/echo/v4"
 	"net/http"
+
+	"github.com/labstack/echo/v4"
 )
 
 // DocumentsDocumentIDAttributeGet -
@@ -148,9 +150,12 @@ func (c *Container) DocumentsDocumentIDReporteesReporteeIDPut(ctx echo.Context) 
 
 // DocumentsGet -
 func (c *Container) DocumentsGet(ctx echo.Context) error {
-	return ctx.JSON(http.StatusOK, models.HelloWorld{
-		Message: "Hello World",
-	})
+	model, err := fakedata.GenerateFakeData(models.DocumentListModel{})
+	if err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, model)
+
 }
 
 // DocumentsPost -

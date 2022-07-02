@@ -9,16 +9,16 @@ type DocumentModel struct {
 	UserId string `json:"user_id,omitempty" faker:"hyphenTruncatedUUID"`
 
 	// 書類のタイトル
-	Title string `json:"title,omitempty" faker:"lang=jpn,len=50"`
+	Title string `json:"title,omitempty" faker:"lang=jpn,len=50,sentence"`
 
 	// 契約相手の名称などのメモ。受信者には表示されない
-	Note string `json:"note,omitempty" faker:"lang=jpn,len=50"`
+	Note string `json:"note,omitempty" faker:"lang=jpn,len=50,sentence"`
 
 	// 受信者に対するメッセージ
-	Message string `json:"message,omitempty" faker:"lang=jpn,len=50"`
+	Message string `json:"message,omitempty" faker:"lang=jpn,len=50,sentence"`
 
 	// 書類の状態:  * 0 - 下書き  * 1 - 先方確認中  * 2 - 締結済  * 3 - 取消、または却下  * 4 - テンプレート  * 13 - インポート書類
-	Status int64 `json:"status,omitempty" faker:"oneof 0, 1, 2, 3, 4, 13"`
+	Status int64 `json:"status,omitempty" faker:"oneof: 0, 1, 2, 3, 4, 13"`
  
 	// 転送許可設定
 	CanTransfer bool `json:"can_transfer,omitempty"`
@@ -39,11 +39,11 @@ type DocumentModel struct {
 	UpdatedAt string `json:"updated_at,omitempty" faker:"rfc3339"`
 
 	// 参加者の一覧（作成者を含む）
-	Participants []ParticipantModel `json:"participants,omitempty" faker:"boundary_start=1, boundary_end=3"`
+	Participants []ParticipantModel `json:"participants,omitempty"`
 
 	// ファイルの一覧
-	Files []FileModel `json:"files,omitempty" faker:"boundary_start=1, boundary_end=3"`
+	Files []FileModel `json:"files,omitempty"`
 
 	// 共有先の一覧
-	Reportees []ReporteeModel `json:"reportees,omitempty" faker:"boundary_start=1, boundary_end=3"`
+	Reportees []ReporteeModel `json:"reportees,omitempty"`
 }
