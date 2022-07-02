@@ -1,0 +1,2996 @@
+openapi: 3.0.2
+info:
+  title: クラウドサイン Web API
+  version: 0.19.0
+servers:
+- description: プロダクション環境
+  url: https://api.cloudsign.jp
+- description: サンドボックス環境
+  url: https://api-sandbox.cloudsign.jp
+paths:
+  /token:
+    get:
+      deprecated: true
+      description: アクセストークンを取得する。  レスポンスはPOSTと共通。
+      parameters:
+      - description: クライアント ID
+        explode: true
+        in: query
+        name: client_id
+        required: true
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          $ref: '#/paths/~1token/post/responses/200'
+        "400":
+          $ref: '#/paths/~1token/post/responses/400'
+        "403":
+          $ref: '#/paths/~1token/post/responses/403'
+        "500":
+          $ref: '#/paths/~1token/post/responses/500'
+    post:
+      description: "アクセストークンの取得にはクライアント ID が必要となる。クライアントID はWeb API クライアント ID 確認ペー\
+        ジ [https://www.cloudsign.jp/api/clients](https://www.cloudsign.jp/api/clients)\
+        \ にて確認可能。"
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/token_body'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/accessTokenModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: client_id が空の場合は error の値は invalid_request に、不適切な client_id
+            の場合は error の値は invalid_client。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 無効なユーザーのクライアント ID を使用したリクエストの場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合
+            error の値は forbidden。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API サーバーの内部的なエラーの場合 error の値は internal_server_error。
+  /documents:
+    get:
+      description: 書類一覧の取得
+      parameters:
+      - allowEmptyValue: true
+        description: 値を渡さない場合、または不適切な値を渡した場合は 1 を利用する。データ量に対して大きすぎる値を渡した場合は documents
+          の配列は空となる。
+        explode: true
+        in: query
+        name: page
+        required: false
+        schema:
+          default: 1
+          type: integer
+        style: form
+      - allowEmptyValue: true
+        description: |
+          状態で絞り込みを行う。
+           * -1 - 全ての状態
+           * 0 - 下書き
+           * 1 - 先方確認中
+           * 2 - 締結済
+           * 3 - 取消、または却下
+           * 4 - テンプレート
+        explode: true
+        in: query
+        name: status
+        required: false
+        schema:
+          default: -1
+          enum:
+          - -1
+          - 0
+          - 1
+          - 2
+          - 3
+          - 4
+          type: integer
+        style: form
+      - allowEmptyValue: true
+        description: ファイルの情報が不要な場合は、 y 以外の値を指定する。
+        explode: true
+        in: query
+        name: with_files
+        required: false
+        schema:
+          default: "y"
+          type: string
+        style: form
+      - allowEmptyValue: true
+        description: 参加者の情報が不要な場合は、 y 以外の値を指定する。
+        explode: true
+        in: query
+        name: with_participants
+        required: false
+        schema:
+          default: "y"
+          type: string
+        style: form
+      - allowEmptyValue: true
+        description: 共有先の情報を取得する場合は、 y を指定する。
+        explode: true
+        in: query
+        name: with_reportees
+        required: false
+        schema:
+          default: "n"
+          type: string
+        style: form
+      - allowEmptyValue: true
+        description: 取得対象に書類管理者が共有したテンプレートを含む場合は、 y を指定する。status に 4 を指定した場合のみ有効となる。
+        explode: true
+        in: query
+        name: with_shared_templates
+        required: false
+        schema:
+          default: "n"
+          type: string
+        style: form
+      - allowEmptyValue: true
+        description: 書類の最終処理日時で絞り込みをする際の開始日時を指定する。（RFC3339準拠）
+        explode: true
+        in: query
+        name: from
+        required: false
+        schema:
+          format: YYYY-MM-DDThh:mm:ss.SSSSSSZ
+          type: string
+        style: form
+      - allowEmptyValue: true
+        description: 書類の最終処理日時で絞り込みをする際の終了日時を指定する。（RFC3339準拠）
+        explode: true
+        in: query
+        name: to
+        required: false
+        schema:
+          format: YYYY-MM-DDThh:mm:ss.SSSSSSZ
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentListModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合、 status の値が不適切な場合、 error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error の値は forbidden
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: GET / POST 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+    post:
+      description: 書類の作成
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/documents_body'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークン、またはリクエストパラメータが不正な場合、 error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: template_id 指定時に指定された書類にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合
+            error の値は forbidden。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: GET / POST 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+  /documents/{documentID}:
+    delete:
+      description: 書類が下書き状態の場合に削除を行う
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合、または書類が下書きでない場合 error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error
+            の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類が存在しない場合 error の値は not_found。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: GET / POST / PUT / DELETE 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+    get:
+      description: 書類のデータ取得
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合 error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error
+            の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類が存在しない場合 error の値は not_found。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: GET / POST / PUT / DELETE 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+    post:
+      description: 書類が下書き状態の場合には書類の送信を、書類が先方確認中状態の場合にはリマインドを行う。なお、承認機能による送信制御は行われない。
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合または送信者に割り当てられた入力項目の値が設定されていない場合 error
+            の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error
+            の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類が存在しない場合 error の値は not_found。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: GET / POST / PUT / DELETE 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "406":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 下書き状態または先方確認中状態でない書類に対して操作をしようとした場合、もしくは参加者（送信者と1人以上の受信者）やファイル（1つ以上）が不足している書類を操作しようとした場合、
+            error の値は not_acceptable。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+    put:
+      description: 書類のデータ更新
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/documents_documentID_body'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークン、またはリクエストパラメータが不正な場合 error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error
+            の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類が存在しない場合 error の値は not_found。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: GET / POST / PUT / DELETE 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+  /documents/{documentID}/attribute:
+    get:
+      description: 書類情報の取得
+      parameters:
+      - description: 書類のID
+        explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentAttributeModel'
+          description: 正常
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類情報にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error
+            の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類情報が存在しない場合 error の値は not_found。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+    put:
+      description: "書類情報が存在しない場合は作成、存在する場合は書類情報を更新します。\n`Content-Type: application/json`\
+        \ のみリクエストを受け付けます。\nオブジェクトのキーはそれぞれ省略可能です。\n省略された場合は、対応するdocumentAttributeModelの\
+        値は変更されません。\n"
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/documentAttributeUpsertRequest'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentAttributeModel'
+          description: 正常
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類情報にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error
+            の値は forbidden。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+  /documents/{documentID}/certificate:
+    get:
+      description: 合意締結証明書の取得
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                format: binary
+                type: string
+            application/pdf:
+              schema:
+                format: binary
+                type: string
+          description: 正常時 合意締結証明書PDFファイルが返却される。
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+            application/pdf:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合 error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+            application/pdf:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+            application/pdf:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+            application/pdf:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error
+            の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+            application/pdf:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類が存在しない場合、または書類のステータスが締結済み以外の場合 error の値は not_found。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+            application/pdf:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: GET 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+            application/pdf:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+  /documents/{documentID}/decline:
+    put:
+      description: 自分が送信した先方確認中の書類を却下する。
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/documentID_decline_body'
+      responses:
+        "200":
+          description: 正常
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合、却下理由が1000文字以上の場合、書類が先方確認中でない場合 error
+            の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error
+            の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類が存在しない場合 error の値は not_found。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+  /documents/{documentID}/files:
+    post:
+      description: ファイルの添付。添付するファイルの容量はおおよそ 20MB を上限とする。正確にはリクエストのボディー全体で 20MB を上限としている。送付するファイルの合計サイズは
+        50MB を上限としている。
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/documentID_files_body'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合、アップロードしたファイルの内容が空の場合、アップロードしたファイルの合計サイズが
+            50MB を超えた場合、またはファイルが %%EOF で終端していない場合、 error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error
+            の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類が存在しない場合 error の値は not_found。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: POST 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "406":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 下書き状態でない書類に対して操作をしようとした場合 error の値は not_acceptable。
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: リクエストのサイズが大きすぎる場合 error の値は too_large_request。
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: PDF 以外のファイルをアップロードした場合、もしくは Content-Type に multipart/form-data
+            を付与していなかった場合、 error の値は unsupported_media_type。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+  /documents/{documentID}/files/{fileID}:
+    delete:
+      description: 添付ファイルの削除
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: fileID
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合 error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error
+            の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類またはファイルが存在しない場合 error の値は not_found。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: DELETE 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "406":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 下書き状態でない書類に対して操作をしようとした場合 error の値は not_acceptable。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+    get:
+      description: ファイルの取得
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: fileID
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/pdf:
+              schema:
+                format: binary
+                type: string
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+            application/pdf:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合 error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+            application/pdf:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+            application/pdf:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+            application/pdf:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error
+            の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+            application/pdf:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類またはファイルが存在しない場合 error の値は not_found。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+            application/pdf:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: GET 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+            application/pdf:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+  /documents/{documentID}/participants:
+    post:
+      description: 宛先の追加
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/documentID_participants_body'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合、 email または name が空・不適切な場合、すでに宛先に含まれている
+            email を指定した場合、 error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error
+            の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類が存在しない場合 error の値は not_found。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: POST 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "406":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 下書き状態でない書類に対して操作をしようとした場合 error の値は not_acceptable。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+  /documents/{documentID}/participants/{participantID}:
+    delete:
+      description: 宛先の削除
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: participantID
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合 error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、宛先操作の際に書類の送信者を対象とした場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合
+            error の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類または宛先が存在しない場合 error の値は not_found。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: PUT / DELETE 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "406":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 下書き状態でない書類に対して操作をしようとした場合 error の値は not_acceptable。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+    put:
+      description: 宛先の更新
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: participantID
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/participants_participantID_body'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合、 email が不適切な場合、すでに宛先に含まれている email を指定した場合、
+            error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、宛先操作の際に書類の送信者を対象とした場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合
+            error の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類または宛先が存在しない場合 error の値は not_found。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: PUT / DELETE 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "406":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 下書き状態でない書類に対して操作をしようとした場合 error の値は not_acceptable。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+  /documents/{documentID}/files/{fileID}/widgets:
+    post:
+      description: 入力項目の追加
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: fileID
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/fileID_widgets_body'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合、 email または name が空・不適切な場合、 page の値が不適切な場合、送信者宛の入力項目で
+            text が空の場合、送信者以外宛の入力項目で text が空でない場合、 x または y の値が不適切な場合 error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error
+            の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類またはファイルが存在しない場合 error の値は not_found。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: POST 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "406":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 下書き状態でない書類に対して操作をしようとした場合 error の値は not_acceptable。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+  /documents/{documentID}/files/{fileID}/widgets/{widgetID}:
+    delete:
+      description: 入力項目の削除
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: fileID
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: widgetID
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合、 email または name が空・不適切な場合、 error の値は
+            bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error
+            の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類・ファイル、または入力項目が存在しない場合 error の値は not_found。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: PUT/DELETE 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "406":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 下書き状態でない書類に対して操作をしようとした場合 error の値は not_acceptable。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+    put:
+      description: 入力項目の内容変更
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: fileID
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: widgetID
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/widgets_widgetID_body'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合、 email または name が空・不適切な場合、 page の値が不適切な場合、
+            x または y の値が不適切な場合、error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error
+            の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類・ファイル、または入力項目が存在しない場合 error の値は not_found。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: PUT/DELETE 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "406":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 下書き状態でない書類に対して操作をしようとした場合 error の値は not_acceptable。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+  /team_documents:
+    get:
+      description: メンバー全員がやり取りした書類一覧の取得。この API で返る書類一覧は、書類の状態が「先方確認中」「締結済」「取消、または却下」「インポート書類」のもののみで、下書きやテンプレートなどは含まれない。また、この
+        API の呼び出しは管理者権限を持ったアカウントに限られる。
+      parameters:
+      - allowEmptyValue: true
+        description: 値を渡さない場合、または不適切な値を渡した場合は 1 を利用する。データ量に対して大きすぎる値を渡した場合は documents
+          の配列は空となる。
+        explode: true
+        in: query
+        name: page
+        required: false
+        schema:
+          default: 1
+          type: integer
+        style: form
+      - allowEmptyValue: true
+        description: 値として y を渡した場合のみ、それぞれの書類にファイルの情報を付加する。
+        explode: true
+        in: query
+        name: with_files
+        required: false
+        schema:
+          type: string
+        style: form
+      - allowEmptyValue: true
+        description: 値として y を渡した場合のみ、それぞれの書類に参加者の情報を付加する。
+        explode: true
+        in: query
+        name: with_participants
+        required: false
+        schema:
+          type: string
+        style: form
+      - allowEmptyValue: true
+        description: 値として y を渡した場合のみ、それぞれの書類に共有先の情報を付加する。
+        explode: true
+        in: query
+        name: with_reportees
+        required: false
+        schema:
+          type: string
+        style: form
+      - allowEmptyValue: true
+        description: 書類の最終処理日時で絞り込みをする際の開始日時を指定する。（RFC3339準拠）
+        explode: true
+        in: query
+        name: from
+        required: false
+        schema:
+          format: YYYY-MM-DDThh:mm:ss.SSSSSSZ
+          type: string
+        style: form
+      - allowEmptyValue: true
+        description: 書類の最終処理日時で絞り込みをする際の終了日時を指定する。（RFC3339準拠）
+        explode: true
+        in: query
+        name: to
+        required: false
+        schema:
+          format: YYYY-MM-DDThh:mm:ss.SSSSSSZ
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentListModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合、 status の値が不適切な場合、 error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 管理者権限が無いアカウントでアクセスした場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合
+            error の値は forbidden。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: GET / POST 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+  /me:
+    get:
+      description: APIを実行しているユーザーのユーザー情報およびチーム情報を返す。
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/userModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合、 status の値が不適切な場合、 error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API サーバーの内部的なエラーの場合 error の値は internal_server_error。
+      security:
+      - accessTokenAuth: []
+  /documents/{documentID}/reportees:
+    post:
+      description: 共有先の追加
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/documentID_reportees_body'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合、 email または name が空・不適切な場合、 すでに宛先/共有先に含まれている
+            email を指定した場合、 error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error
+            の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類が存在しない場合 error の値は not_found。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: POST 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "406":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 下書き状態でない書類に対して操作をしようとした場合 error の値は not_acceptable。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+  /documents/{documentID}/reportees/{reporteeID}:
+    delete:
+      description: 共有先の削除
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: reporteeID
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合 error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、宛先操作の際に書類の送信者を対象とした場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合
+            error の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類または共有先が存在しない場合 error の値は not_found。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: PUT / DELETE 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "406":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 下書き状態でない書類に対して操作をしようとした場合 error の値は not_acceptable。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+    put:
+      description: 共有先の更新
+      parameters:
+      - explode: false
+        in: path
+        name: documentID
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: reporteeID
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/reportees_reporteeID_body'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentModel'
+          description: 正常時
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが適切に設定されていない場合、 email または name が空・不適切な場合、 すでに宛先/共有先に含まれている
+            email を指定した場合、 error の値は bad_request。
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: アクセストークンが無効な場合 error の値は unauthorized。
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: API オプションの契約が無いユーザーからのアクセスの場合 error の値は webapi_option_required。
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 書類にアクセスする権限が無い場合、IPアドレス制限機能を設定していて、不正なIPアドレスからリクエストした場合 error
+            の値は forbidden。
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 指定された書類または共有先が存在しない場合 error の値は not_found。
+        "405":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: PUT / DELETE 以外のメソッドでアクセスした場合 error の値は method_not_allowed。
+        "406":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: 下書き状態でない書類に対して操作をしようとした場合 error の値は not_acceptable。
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorModel'
+          description: error の値は API サーバーの内部的なエラーの場合 internal_server_error。
+      security:
+      - accessTokenAuth: []
+components:
+  schemas:
+    accessTokenModel:
+      example:
+        access_token: access_token
+        token_type: token_type
+        expires_in: 0
+      properties:
+        access_token:
+          description: アクセストークンの値
+          maxLength: 36
+          minLength: 32
+          type: string
+        expires_in:
+          description: アクセストークンが有効な残り秒数
+          format: int64
+          type: integer
+        token_type:
+          description: Bearer
+          format: Bearer
+          type: string
+    errorModel:
+      properties:
+        error:
+          description: エラーの種類
+          type: string
+        message:
+          description: エラーメッセージ
+          type: string
+    documentModel:
+      example:
+        note: note
+        private: true
+        created_at: created_at
+        title: title
+        message: message
+        reportees:
+        - organization: organization
+          name: name
+          id: id
+          email: email
+        - organization: organization
+          name: name
+          id: id
+          email: email
+        sent_at: sent_at
+        updated_at: updated_at
+        user_id: user_id
+        last_processed_at: last_processed_at
+        files:
+        - name: name
+          id: id
+          total_pages: 7
+          widgets:
+          - participant_id: participant_id
+            h: 1
+            label: label
+            widget_type: 9
+            required: true
+            file_id: file_id
+            w: 7
+            x: 2
+            "y": 4
+            id: id
+            page: 3
+            text: text
+            status: 1
+          - participant_id: participant_id
+            h: 1
+            label: label
+            widget_type: 9
+            required: true
+            file_id: file_id
+            w: 7
+            x: 2
+            "y": 4
+            id: id
+            page: 3
+            text: text
+            status: 1
+          order: 2
+        - name: name
+          id: id
+          total_pages: 7
+          widgets:
+          - participant_id: participant_id
+            h: 1
+            label: label
+            widget_type: 9
+            required: true
+            file_id: file_id
+            w: 7
+            x: 2
+            "y": 4
+            id: id
+            page: 3
+            text: text
+            status: 1
+          - participant_id: participant_id
+            h: 1
+            label: label
+            widget_type: 9
+            required: true
+            file_id: file_id
+            w: 7
+            x: 2
+            "y": 4
+            id: id
+            page: 3
+            text: text
+            status: 1
+          order: 2
+        id: id
+        can_transfer: true
+        status: 1
+        participants:
+        - language_code: language_code
+          organization: organization
+          access_code: access_code
+          name: name
+          processed_at: processed_at
+          id: id
+          access_expires_at: access_expires_at
+          email: email
+          order: 5
+          status: 5
+        - language_code: language_code
+          organization: organization
+          access_code: access_code
+          name: name
+          processed_at: processed_at
+          id: id
+          access_expires_at: access_expires_at
+          email: email
+          order: 5
+          status: 5
+      properties:
+        id:
+          description: 書類ID
+          maxLength: 36
+          minLength: 32
+          type: string
+        user_id:
+          description: 作成者ID
+          maxLength: 36
+          minLength: 32
+          type: string
+        title:
+          description: 書類のタイトル
+          maxLength: 500
+          minLength: 0
+          type: string
+        note:
+          description: 契約相手の名称などのメモ。受信者には表示されない
+          type: string
+        message:
+          description: 受信者に対するメッセージ
+          type: string
+        status:
+          description: |
+            書類の状態:
+             * 0 - 下書き
+             * 1 - 先方確認中
+             * 2 - 締結済
+             * 3 - 取消、または却下
+             * 4 - テンプレート
+             * 13 - インポート書類
+          enum:
+          - 0
+          - 1
+          - 2
+          - 3
+          - 4
+          format: int64
+          type: integer
+        can_transfer:
+          description: 転送許可設定
+          type: boolean
+        private:
+          description: 親展書類設定
+          type: boolean
+        sent_at:
+          description: 送信日時（RFC3339準拠）
+          format: YYYY-MM-DDThh:mm:ss.SSSSSSZ
+          type: string
+        last_processed_at:
+          description: |
+            書類の最終処理日時（RFC3339準拠）
+            documentModel.statusが以下のいずれかである場合は、最後の同意/却下日時。participants中のparticipantModel.processed_atの最新と等しい。
+
+            status:
+              * 1 - 先方確認中
+              * 2 - 締結済
+              * 3 - 取消、または却下
+              * 13 - インポート書類
+
+            documentModel.statusが上記のいずれでもない場合は、書類の最終更新日時。
+          format: YYYY-MM-DDThh:mm:ss.SSSSSSZ
+          type: string
+        created_at:
+          description: 作成日時（RFC3339準拠）
+          format: YYYY-MM-DDThh:mm:ssZ
+          type: string
+        updated_at:
+          description: 更新日時（RFC3339準拠）
+          format: YYYY-MM-DDThh:mm:ssZ
+          type: string
+        participants:
+          description: 参加者の一覧（作成者を含む）
+          items:
+            $ref: '#/components/schemas/participantModel'
+          type: array
+        files:
+          description: ファイルの一覧
+          items:
+            $ref: '#/components/schemas/fileModel'
+          type: array
+        reportees:
+          description: 共有先の一覧
+          items:
+            $ref: '#/components/schemas/reporteeModel'
+          type: array
+    documentAttributeModel:
+      example:
+        amount: 6
+        validity_start_at: 2000-01-23
+        local_id: local_id
+        validity_end_notice_at: 2000-01-23
+        created_at: 2000-01-23T04:56:07.000+00:00
+        document_id: document_id
+        title: title
+        contract_at: 2000-01-23
+        auto_update: 0
+        updated_at: 2000-01-23T04:56:07.000+00:00
+        validity_end_at: 2000-01-23
+        options:
+        - content: content
+          order: 1
+        - content: content
+          order: 1
+        counterparty: counterparty
+      properties:
+        document_id:
+          description: 書類のID
+          type: string
+        title:
+          description: 管理用タイトル
+          maxLength: 500
+          minLength: 0
+          type: string
+        counterparty:
+          description: 契約相手の名称
+          maxLength: 500
+          minLength: 0
+          type: string
+        contract_at:
+          description: 契約締結日 nullを許容する
+          format: date
+          type: string
+        validity_start_at:
+          description: 契約開始日 nullを許容する
+          format: date
+          type: string
+        validity_end_at:
+          description: 契約終了日 nullを許容する
+          format: date
+          type: string
+        validity_end_notice_at:
+          description: 解約通知期限 nullを許容する
+          format: date
+          type: string
+        auto_update:
+          description: |
+            自動更新の有無:
+              * 0 - 指定なし
+              * 1 - あり
+              * 2 - なし
+          enum:
+          - 0
+          - 1
+          - 2
+          type: integer
+        local_id:
+          description: 管理番号
+          maxLength: 255
+          minLength: 0
+          type: string
+        amount:
+          description: 取引金額 nullを許容する
+          type: integer
+        created_at:
+          description: 作成日時
+          format: date-time
+          type: string
+        updated_at:
+          description: 更新日時
+          format: date-time
+          type: string
+        options:
+          description: ユーザー定義の項目
+          items:
+            $ref: '#/components/schemas/documentAttributeModel_options'
+          type: array
+    documentAttributeUpsertRequest:
+      description: 書類情報作成・更新用 オブジェクト
+      properties:
+        title:
+          description: 管理用タイトル
+          type: string
+        counterparty:
+          description: 契約相手の名称
+          type: string
+        contract_at:
+          description: 契約締結日 nullを許容する
+          format: date
+          type: string
+        validity_start_at:
+          description: 契約開始日 nullを許容する
+          format: date
+          type: string
+        validity_end_at:
+          description: 契約終了日 nullを許容する
+          format: date
+          type: string
+        validity_end_notice_at:
+          description: 解約通知期限 nullを許容する
+          format: date
+          type: string
+        auto_update:
+          description: |
+            自動更新の有無:
+              * 0 - 指定なし
+              * 1 - あり
+              * 2 - なし
+          enum:
+          - 0
+          - 1
+          - 2
+          type: integer
+        local_id:
+          description: 管理番号
+          type: string
+        amount:
+          description: 取引金額 nullを許容する
+          type: integer
+        options:
+          items:
+            $ref: '#/components/schemas/documentAttributeUpsertRequest_options'
+          type: array
+      type: object
+    documentListModel:
+      example:
+        total: 0
+        documents:
+        - note: note
+          private: true
+          created_at: created_at
+          title: title
+          message: message
+          reportees:
+          - organization: organization
+            name: name
+            id: id
+            email: email
+          - organization: organization
+            name: name
+            id: id
+            email: email
+          sent_at: sent_at
+          updated_at: updated_at
+          user_id: user_id
+          last_processed_at: last_processed_at
+          files:
+          - name: name
+            id: id
+            total_pages: 7
+            widgets:
+            - participant_id: participant_id
+              h: 1
+              label: label
+              widget_type: 9
+              required: true
+              file_id: file_id
+              w: 7
+              x: 2
+              "y": 4
+              id: id
+              page: 3
+              text: text
+              status: 1
+            - participant_id: participant_id
+              h: 1
+              label: label
+              widget_type: 9
+              required: true
+              file_id: file_id
+              w: 7
+              x: 2
+              "y": 4
+              id: id
+              page: 3
+              text: text
+              status: 1
+            order: 2
+          - name: name
+            id: id
+            total_pages: 7
+            widgets:
+            - participant_id: participant_id
+              h: 1
+              label: label
+              widget_type: 9
+              required: true
+              file_id: file_id
+              w: 7
+              x: 2
+              "y": 4
+              id: id
+              page: 3
+              text: text
+              status: 1
+            - participant_id: participant_id
+              h: 1
+              label: label
+              widget_type: 9
+              required: true
+              file_id: file_id
+              w: 7
+              x: 2
+              "y": 4
+              id: id
+              page: 3
+              text: text
+              status: 1
+            order: 2
+          id: id
+          can_transfer: true
+          status: 1
+          participants:
+          - language_code: language_code
+            organization: organization
+            access_code: access_code
+            name: name
+            processed_at: processed_at
+            id: id
+            access_expires_at: access_expires_at
+            email: email
+            order: 5
+            status: 5
+          - language_code: language_code
+            organization: organization
+            access_code: access_code
+            name: name
+            processed_at: processed_at
+            id: id
+            access_expires_at: access_expires_at
+            email: email
+            order: 5
+            status: 5
+        - note: note
+          private: true
+          created_at: created_at
+          title: title
+          message: message
+          reportees:
+          - organization: organization
+            name: name
+            id: id
+            email: email
+          - organization: organization
+            name: name
+            id: id
+            email: email
+          sent_at: sent_at
+          updated_at: updated_at
+          user_id: user_id
+          last_processed_at: last_processed_at
+          files:
+          - name: name
+            id: id
+            total_pages: 7
+            widgets:
+            - participant_id: participant_id
+              h: 1
+              label: label
+              widget_type: 9
+              required: true
+              file_id: file_id
+              w: 7
+              x: 2
+              "y": 4
+              id: id
+              page: 3
+              text: text
+              status: 1
+            - participant_id: participant_id
+              h: 1
+              label: label
+              widget_type: 9
+              required: true
+              file_id: file_id
+              w: 7
+              x: 2
+              "y": 4
+              id: id
+              page: 3
+              text: text
+              status: 1
+            order: 2
+          - name: name
+            id: id
+            total_pages: 7
+            widgets:
+            - participant_id: participant_id
+              h: 1
+              label: label
+              widget_type: 9
+              required: true
+              file_id: file_id
+              w: 7
+              x: 2
+              "y": 4
+              id: id
+              page: 3
+              text: text
+              status: 1
+            - participant_id: participant_id
+              h: 1
+              label: label
+              widget_type: 9
+              required: true
+              file_id: file_id
+              w: 7
+              x: 2
+              "y": 4
+              id: id
+              page: 3
+              text: text
+              status: 1
+            order: 2
+          id: id
+          can_transfer: true
+          status: 1
+          participants:
+          - language_code: language_code
+            organization: organization
+            access_code: access_code
+            name: name
+            processed_at: processed_at
+            id: id
+            access_expires_at: access_expires_at
+            email: email
+            order: 5
+            status: 5
+          - language_code: language_code
+            organization: organization
+            access_code: access_code
+            name: name
+            processed_at: processed_at
+            id: id
+            access_expires_at: access_expires_at
+            email: email
+            order: 5
+            status: 5
+        page: 6
+      properties:
+        total:
+          description: 該当する書類の総数
+          format: int64
+          type: integer
+        page:
+          description: 指定されたページ番号。ページあたりの書類数は最大100件。
+          format: int64
+          type: integer
+        documents:
+          description: 書類データ
+          items:
+            $ref: '#/components/schemas/documentModel'
+          type: array
+    participantModel:
+      example:
+        language_code: language_code
+        organization: organization
+        access_code: access_code
+        name: name
+        processed_at: processed_at
+        id: id
+        access_expires_at: access_expires_at
+        email: email
+        order: 5
+        status: 5
+      properties:
+        id:
+          description: 宛先ID
+          maxLength: 36
+          minLength: 32
+          type: string
+        email:
+          description: 宛先のメールアドレス
+          format: email
+          type: string
+        name:
+          description: 宛先の名前
+          maxLength: 64
+          type: string
+        organization:
+          description: 宛先の会社名
+          maxLength: 64
+          type: string
+        order:
+          description: 書類内の宛先の順序（送信者は 0）
+          format: int64
+          type: integer
+        status:
+          description: |
+            宛先の状態:
+             * 0 - アクセス不可
+             * 2 - 下書き
+             * 3 - 配信待ち
+             * 4 - 確認待ち
+             * 6 - 送信済み
+             * 7 - 確認済み
+             * 8 - 押印または入力済み
+             * 9 - 却下
+             * 10 - キャンセル
+             * 12 - 署名中
+          enum:
+          - 0
+          - 2
+          - 3
+          - 4
+          - 6
+          - 7
+          - 8
+          - 9
+          - 10
+          - 12
+          type: integer
+        access_code:
+          description: 宛先に設定されているアクセスコード。APIを使用しているユーザーが値を設定した場合のみレスポンスに含まれる。
+          type: string
+        language_code:
+          description: 宛先の言語設定。ja（日本語）、en（英語）、zh-CHS（簡体字）、zh-CHT（繁体字）のいずれか。
+          type: string
+        processed_at:
+          description: 各受信者による書類の同意/却下日時（RFC3339準拠）
+          format: YYYY-MM-DDThh:mm:ss.SSSSSSZ
+          type: string
+        access_expires_at:
+          description: URL有効期限（RFC3339準拠）。statusが4の場合のみレスポンスに含まれる。
+          format: YYYY-MM-DDThh:mm:ssZ
+          type: string
+    fileModel:
+      example:
+        name: name
+        id: id
+        total_pages: 7
+        widgets:
+        - participant_id: participant_id
+          h: 1
+          label: label
+          widget_type: 9
+          required: true
+          file_id: file_id
+          w: 7
+          x: 2
+          "y": 4
+          id: id
+          page: 3
+          text: text
+          status: 1
+        - participant_id: participant_id
+          h: 1
+          label: label
+          widget_type: 9
+          required: true
+          file_id: file_id
+          w: 7
+          x: 2
+          "y": 4
+          id: id
+          page: 3
+          text: text
+          status: 1
+        order: 2
+      properties:
+        id:
+          description: ファイルの ID
+          maxLength: 36
+          minLength: 32
+          type: string
+        name:
+          description: ファイルのタイトル
+          type: string
+        order:
+          description: 書類内のファイルの順序
+          format: int64
+          type: integer
+        total_pages:
+          description: ファイルのページ数
+          format: int64
+          type: integer
+        widgets:
+          description: 入力項目の一覧
+          items:
+            $ref: '#/components/schemas/widgetModel'
+          type: array
+    widgetModel:
+      example:
+        participant_id: participant_id
+        h: 1
+        label: label
+        widget_type: 9
+        required: true
+        file_id: file_id
+        w: 7
+        x: 2
+        "y": 4
+        id: id
+        page: 3
+        text: text
+        status: 1
+      properties:
+        id:
+          description: 入力項目の ID
+          maxLength: 36
+          minLength: 32
+          type: string
+        widget_type:
+          description: |
+            入力項目の種類:
+             * 0 - 押印
+             * 1 - フリーテキスト
+             * 2 - チェックボックス
+          enum:
+          - 0
+          - 1
+          - 2
+          type: integer
+        participant_id:
+          description: 入力が割り当てられている宛先の ID
+          maxLength: 36
+          minLength: 32
+          type: string
+        file_id:
+          description: 入力対象のファイルの ID
+          maxLength: 36
+          minLength: 32
+          type: string
+        page:
+          description: 入力項目が設定されている対象ファイルのページ番号
+          format: int64
+          type: integer
+        x:
+          description: 入力項目左上の対象ファイル・対象ページにおける設置位置の X 座標
+          format: int64
+          type: integer
+        "y":
+          description: 入力項目左上の対象ファイル・対象ページにおける設置位置の Y 座標
+          format: int64
+          type: integer
+        w:
+          description: 入力項目の幅
+          format: int64
+          type: integer
+        h:
+          description: 入力項目の高さ
+          format: int64
+          type: integer
+        text:
+          description: 入力項目に入力されたテキスト
+          type: string
+        status:
+          description: |
+            入力項目の状態:
+              * 0 - 未入力
+              * 1 - 入力済み
+          enum:
+          - 0
+          - 1
+          type: integer
+        label:
+          description: 入力項目に入力されたラベル
+          type: string
+        required:
+          description: |
+            widget_type が 2 (チェックボックス) の場合のみ含まれる、必須/任意の設定:
+              * true - 必須
+              * false - 任意
+          type: boolean
+    userModel:
+      example:
+        organization: organization
+        name: name
+        id: id
+        team: null
+        email: email
+        authorities: null
+      properties:
+        id:
+          description: ユーザーの ID
+          maxLength: 36
+          minLength: 32
+          type: string
+        email:
+          description: ユーザーのメールアドレス
+          type: string
+        name:
+          description: ユーザーの名前
+          type: string
+        organization:
+          description: ユーザーの組織の名称
+          type: string
+        team:
+          $ref: '#/components/schemas/userModel_team'
+        authorities:
+          $ref: '#/components/schemas/userModel_authorities'
+    userAuthoritiesModel:
+      properties:
+        team_administrator:
+          description: チーム管理権限。チームの設定変更とメンバー管理が行える。
+          type: boolean
+        team_document_administrator:
+          description: 書類管理権限。チーム内で送受信された書類を閲覧できる。
+          type: boolean
+        document_approver:
+          description: 承認者。チームの承認機能が有効な場合、書類の宛先に承認者として追加できる。
+          type: boolean
+        private_document_administrator:
+          description: 親展書類管理権限。チーム内で送受信された親展書類を閲覧できる。
+          type: boolean
+    teamModel:
+      properties:
+        id:
+          description: チームの ID
+          maxLength: 36
+          minLength: 32
+          type: string
+        name:
+          description: チームの名前
+          type: string
+    reporteeModel:
+      example:
+        organization: organization
+        name: name
+        id: id
+        email: email
+      properties:
+        id:
+          description: 共有先の ID
+          maxLength: 36
+          minLength: 32
+          type: string
+        email:
+          description: 共有先のメールアドレス
+          format: email
+          type: string
+        name:
+          description: 共有先の名前
+          maxLength: 64
+          minLength: 1
+          type: string
+        organization:
+          description: 共有先の会社名など
+          maxLength: 64
+          minLength: 0
+          type: string
+    requestBodyNote:
+      description: |
+        契約相手の名称などのメモ。受信者には表示されない。
+        文字数上限はないものの、リクエスト全体のサイズ上限の50MBを超えない範囲内で指定可能。
+      type: string
+    requestBodyEmail:
+      description: |
+        宛先のメールアドレス。
+        RFCに対応しているメールアドレスかどうかを検証している。
+        ドメインの存在確認を行っている。
+      format: email
+      maxLength: 254
+      type: string
+    requestBodyReporteesEmail:
+      description: |
+        共有先のメールアドレス。
+        RFCに対応しているメールアドレスかどうかを検証している。
+        ドメインの存在確認を行っている。
+      format: email
+      maxLength: 254
+      type: string
+    token_body:
+      properties:
+        client_id:
+          type: string
+      required:
+      - client_id
+      type: object
+    documents_body:
+      properties:
+        title:
+          description: 書類のタイトル
+          type: string
+        note:
+          $ref: '#/components/schemas/requestBodyNote'
+        message:
+          description: 確認依頼メールに追加されるメッセージ
+          type: string
+        template_id:
+          description: 既存のテンプレートから書類作成を行う場合の元となるテンプレートの書類 ID
+          type: string
+        can_transfer:
+          default: false
+          description: "受信者に転送を許可するフラグ。指定できる値はtrue、またはfalse。trueの代わりに1、t、T、TRUE、True、\
+            falseの代わりに0, f, F, FALSE, Falseを指定可能。デフォルトはfalse。"
+          type: boolean
+        private:
+          default: false
+          description: "親展書類として送信するフラグ。チーム設定で親展書類の送信が許可されている場合のみ指定可能。 指定できる値はtrue、\
+            またはfalse。trueの代わりに1、t、T、TRUE、True、falseの代わりに0, f, F, FALSE, Falseを指定可能\
+            。デフォルトはfalse。"
+          type: boolean
+      type: object
+    documents_documentID_body:
+      properties:
+        title:
+          description: 書類のタイトル
+          type: string
+        note:
+          $ref: '#/components/schemas/requestBodyNote'
+        message:
+          description: 確認依頼メールに追加されるメッセージ
+          type: string
+        can_transfer:
+          description: "受信者に転送を許可するフラグ。指定できる値はtrue、またはfalse。trueの代わりに1, t, T, TRUE,\
+            \ True、falseの代わりに0, f, F, FALSE, Falseを指定可能。"
+          type: boolean
+        private:
+          default: false
+          description: "親展書類として送信するフラグ。チーム設定で親展書類の送信が許可されている場合のみ指定可能。 指定できる値はtrue、\
+            またはfalse。trueの代わりに1、t、T、TRUE、True、falseの代わりに0, f, F, FALSE, Falseを指定可能\
+            。デフォルトはfalse。"
+          type: boolean
+      type: object
+    documentID_decline_body:
+      properties:
+        comment:
+          description: 却下理由を表す文字列。1000文字未満まで入力可能。
+          type: string
+      type: object
+    documentID_files_body:
+      properties:
+        name:
+          type: string
+        uploadfile:
+          format: binary
+          type: string
+      type: object
+    documentID_participants_body:
+      properties:
+        email:
+          $ref: '#/components/schemas/requestBodyEmail'
+        name:
+          description: 宛先の名前
+          type: string
+        organization:
+          description: 宛先の会社名など
+          type: string
+        access_code:
+          description: 表示をする際に要求されるアクセスコード
+          type: string
+        language_code:
+          default: ja
+          description: 受信者の言語設定。指定できる値はja（日本語）、en（英語）、zh-CHS（簡体字）、zh-CHT（繁体字）の４つ。何も設定しない場合の値はja。
+          type: string
+      required:
+      - email
+      - name
+      type: object
+    participants_participantID_body:
+      properties:
+        email:
+          $ref: '#/components/schemas/requestBodyEmail'
+        name:
+          type: string
+        organization:
+          type: string
+        access_code:
+          type: string
+        language_code:
+          type: string
+      type: object
+    fileID_widgets_body:
+      properties:
+        participant_id:
+          type: string
+        type:
+          description: |
+            入力項目の種類を整数で指定。
+            * 0 - 押印
+            * 1 - フリーテキスト
+            * 2 - チェックボックス
+          type: integer
+        page:
+          description: 入力項目を設置するページ番号を整数で指定。なお、最初のページを0とする。
+          type: integer
+        x:
+          description: 入力項目を設置する位置のX座標を整数で指定する。なお、 fileID で指定した PDF ファイルの左端を0とする。
+          type: integer
+        "y":
+          description: 入力項目を設置する位置のY座標を整数で指定する。なお、 fileID で指定した PDF ファイルの page で指定したページの上端を0とする。
+          type: integer
+        text:
+          description: 入力項目を送信者に割り当てた場合、もしくは任意入力のチェックボックスを受信者に割り当てた場合、入力する内容を指定する。
+            チェックボックスの場合、1 を指定するとチェックが入り、空文字を指定するとチェックが外れる。 チェックボックスを送信者に割り当てた場合、指定した内容は無視されて
+            1 (チェック済み) として扱われる。
+          type: string
+        label:
+          description: 入力項目のラベルを指定する。
+          type: string
+        required:
+          default: true
+          description: "type が 2（チェックボックス）の場合に、チェックを必須とするかを設定するフラグ。 指定できる値はtrue(必須\
+            )、またはfalse(任意)。 trueの代わりに1、t、T、TRUE、True、falseの代わりに0, f, F, FALSE, Falseを\
+            指定可能。 type が 2 以外の場合は無視される。"
+          type: boolean
+      required:
+      - page
+      - participant_id
+      - type
+      - x
+      - "y"
+      type: object
+    widgets_widgetID_body:
+      properties:
+        participant_id:
+          type: string
+        type:
+          type: integer
+        page:
+          type: integer
+        x:
+          type: integer
+        "y":
+          type: integer
+        text:
+          type: string
+        label:
+          description: 入力項目のラベルを指定する。未指定の場合は元の値を維持する。
+          type: string
+        required:
+          description: "type が 2（チェックボックス）の場合に、チェックを必須とするかを設定するフラグ。 指定できる値はtrue(必須\
+            )、またはfalse(任意)。 trueの代わりに1、t、T、TRUE、True、falseの代わりに0, f, F, FALSE, Falseを\
+            指定可能。 type が 2 以外の場合は無視される。"
+          type: boolean
+      type: object
+    documentID_reportees_body:
+      properties:
+        email:
+          $ref: '#/components/schemas/requestBodyReporteesEmail'
+        name:
+          description: 共有先の名前
+          maxLength: 64
+          minLength: 1
+          type: string
+        organization:
+          description: 共有先の会社名など
+          maxLength: 64
+          minLength: 0
+          type: string
+      required:
+      - email
+      - name
+      type: object
+    reportees_reporteeID_body:
+      properties:
+        email:
+          $ref: '#/components/schemas/requestBodyReporteesEmail'
+        name:
+          description: 共有先の名前
+          maxLength: 64
+          minLength: 1
+          type: string
+        organization:
+          description: 共有先の会社名など
+          maxLength: 64
+          minLength: 0
+          type: string
+      required:
+      - email
+      - name
+      type: object
+    documentAttributeModel_options:
+      example:
+        content: content
+        order: 1
+      properties:
+        order:
+          description: ユーザー定義の項目の番号
+          example: 1
+          maximum: 10
+          minimum: 1
+          type: integer
+        content:
+          description: ユーザー定義の項目の値
+          maxLength: 255
+          minLength: 0
+          type: string
+    documentAttributeUpsertRequest_options:
+      properties:
+        order:
+          description: ユーザー定義の項目の番号
+          example: 1
+          maximum: 10
+          minimum: 1
+          type: integer
+        content:
+          description: ユーザー定義の項目の値
+          type: string
+      type: object
+    userModel_team:
+      allOf:
+      - $ref: '#/components/schemas/teamModel'
+      description: ユーザーが所属するチーム
+    userModel_authorities:
+      allOf:
+      - $ref: '#/components/schemas/userAuthoritiesModel'
+      description: ユーザーが保持する権限
+  securitySchemes:
+    accessTokenAuth:
+      in: header
+      name: Authorization
+      type: apiKey
