@@ -1,11 +1,10 @@
-FROM golang:1.16-alpine3.13 as build-env
-RUN apk add --no-cache git gcc
+FROM golang:1.18-alpine as build-env
 RUN mkdir /app
 WORKDIR /app
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o cloudsignfakeserver
-FROM alpine:3.13
+RUN go build -o cloudsignfakeserver
+FROM alpine:latest
 COPY --from=build-env /app/cloudsignfakeserver .
-EXPOSE 8080/tcp
+EXPOSE 18080/tcp
 USER 1001
 ENTRYPOINT ["./cloudsignfakeserver"]
